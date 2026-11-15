@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="sample">
+    <testcase classname="sample.tests" name="test_fail">
+        <failure message="Expected true, received false"/>
+    </testcase>
+</testsuite>
