@@ -21,7 +21,6 @@ OUTCOME_MARKERS = {
 
 def _normalize_case(element) -> TestCase:
     """Normalize one testcase without changing its identity."""
-
     classname = element.get("classname")
     name = element.get("name")
 
@@ -59,13 +58,49 @@ def _normalize_case(element) -> TestCase:
     )
 
 
+def _reject_hidden_tests(element) -> None:
+    """Prevent test records from hiding in metadata containers."""
+    for descendant in element.iter():
+        if descendant is element:
+            continue
+
+        if descendant.tag in {"testcase", "testsuite"}:
+            raise ValueError(
+                "Testcase or testsuite inside unsupported "
+                f"XML container: {element.tag}"
+            )
+
+
+def _iter_valid_testcases(root):
+    """Yield testcases only from supported JUnit suite paths."""
+    suites = [root]
+
+    while suites:
+        suite = suites.pop()
+
+        for child in suite:
+            if child.tag == "testcase":
+                if suite.tag != "testsuite":
+                    raise ValueError(
+                        "Testcase must be a direct child of testsuite"
+                    )
+
+                _reject_hidden_tests(child)
+                yield child
+
+            elif child.tag == "testsuite":
+                suites.append(child)
+
+            else:
+                _reject_hidden_tests(child)
+
+
 def parse_report(path: str | Path) -> tuple[TestCase, ...]:
     """Read and normalize a JUnit XML report securely.
 
     Reject invalid, ambiguous, or oversized inputs.
     Preserve the input file and return stable ordering.
     """
-
     report_path = Path(path)
 
     with report_path.open("rb") as report_file:
@@ -96,7 +131,7 @@ def parse_report(path: str | Path) -> tuple[TestCase, ...]:
     cases: list[TestCase] = []
     identities: set[tuple[str, str]] = set()
 
-    for element in root.iter("testcase"):
+    for element in _iter_valid_testcases(root):
         if len(cases) >= MAX_TEST_CASES:
             raise ValueError(
                 f"Report exceeds {MAX_TEST_CASES} testcase limit"

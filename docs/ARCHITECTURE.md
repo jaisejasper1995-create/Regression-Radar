@@ -351,3 +351,17 @@ A release candidate requires:
 ---
 
 **Engineering principle:** Test the claim — not just the demo.
+
+### XML Structural Validation Clarification
+
+For v0.1.0, a testcase must be a direct child of a testsuite.
+
+Nested testsuite elements are supported. Testcases or testsuites
+hidden inside unrelated metadata containers are rejected rather
+than silently collected.
+
+Harmless vendor-specific testcase metadata is permitted when it
+does not alter test identity or outcome normalization.
+
+This clarification was introduced after adversarial structural
+tests identified overly permissive testcase traversal.
