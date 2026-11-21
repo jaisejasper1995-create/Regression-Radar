@@ -183,4 +183,4 @@ Additional adversarial validation, packaging verification, CI integration, and p
 
 ## License
 
-A project license has not yet been selected or published for Regression Radar.
+Regression Radar is licensed under the MIT License. See [LICENSE](LICENSE) for details.
