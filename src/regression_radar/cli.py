@@ -1,4 +1,5 @@
 
+
 """Command-line interface and deterministic reports for Regression Radar."""
 
 import argparse
@@ -26,8 +27,12 @@ def _build_summary(result: ComparisonResult) -> dict[str, int]:
         "added": len(result.added),
         "missing": len(result.missing),
         "matched": len(result.transitions),
-        "baseline_total": len(result.transitions) + len(result.missing),
-        "current_total": len(result.transitions) + len(result.added),
+        "baseline_total": (
+            len(result.transitions) + len(result.missing)
+        ),
+        "current_total": (
+            len(result.transitions) + len(result.added)
+        ),
     }
 
 
@@ -47,7 +52,11 @@ def _json_report(result: ComparisonResult) -> str:
         ],
     }
 
-    return json.dumps(payload, indent=2, ensure_ascii=True)
+    return json.dumps(
+        payload,
+        indent=2,
+        ensure_ascii=True,
+    )
 
 
 def _text_report(result: ComparisonResult) -> str:
@@ -79,7 +88,8 @@ def _text_report(result: ComparisonResult) -> str:
 
     for item in result.added:
         lines.append(
-            f"  {item.classname}::{item.name} [{item.outcome}]"
+            f"  {item.classname}::{item.name} "
+            f"[{item.outcome}]"
         )
 
     lines.append("")
@@ -87,7 +97,8 @@ def _text_report(result: ComparisonResult) -> str:
 
     for item in result.missing:
         lines.append(
-            f"  {item.classname}::{item.name} [{item.outcome}]"
+            f"  {item.classname}::{item.name} "
+            f"[{item.outcome}]"
         )
 
     return "\n".join(lines)
@@ -97,7 +108,10 @@ def main(argv: list[str] | None = None) -> int:
     """Run comparison and return the documented exit code."""
     parser = argparse.ArgumentParser(
         prog="regression-radar",
-        description="Compare two JUnit XML reports for new regressions.",
+        description=(
+            "Compare two JUnit XML reports "
+            "for new regressions."
+        ),
     )
 
     parser.add_argument(
@@ -105,11 +119,13 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="Path to the baseline JUnit XML report",
     )
+
     parser.add_argument(
         "current",
         type=Path,
         help="Path to the current JUnit XML report",
     )
+
     parser.add_argument(
         "--format",
         choices=("text", "json"),
@@ -127,14 +143,34 @@ def main(argv: list[str] | None = None) -> int:
             baseline_cases,
             current_cases,
         )
+
+        if args.format == "json":
+            report = _json_report(result)
+        else:
+            report = _text_report(result)
+
+        print(report)
+
     except (OSError, ValueError) as exc:
-        print(f"Regression Radar error: {exc}", file=sys.stderr)
+        print(
+            f"Regression Radar error: {exc}",
+            file=sys.stderr,
+        )
         return 2
 
-    if args.format == "json":
-        print(_json_report(result))
-    else:
-        print(_text_report(result))
+    except Exception as exc:  # noqa: BLE001
+        # This broad handler is intentional at the CLI boundary.
+        # Unexpected internal failures must not return exit code 1,
+        # which is reserved for genuine test regressions.
+        #
+        # Report failures on stderr without emitting JSON to stdout.
+        # KeyboardInterrupt and SystemExit are not caught here.
+        print(
+            f"Regression Radar internal error: "
+            f"{type(exc).__name__}: {exc}",
+            file=sys.stderr,
+        )
+        return 2
 
     return 1 if result.new_regressions else 0
 
